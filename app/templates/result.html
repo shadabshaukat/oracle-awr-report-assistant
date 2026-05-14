@@ -4,13 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ app_name }} - Result</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
     <style>
       body { font-family: Arial, sans-serif; margin: 0; background: #ffffff; color: #1b2a41; }
-      .container { max-width: 1120px; margin: 24px auto; padding: 20px; }
+      .container { max-width: 1200px; margin: 24px auto; padding: 20px; }
       .card { background: #ffffff; border: 1px solid #d9e1ec; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
       .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
       .pill { background: #eef4ff; border-radius: 999px; padding: 5px 10px; display: inline-block; margin-right: 6px; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.94rem; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
       th, td { border: 1px solid #d9e1ec; padding: 8px; text-align: left; vertical-align: top; }
       th { background: #f3f8ff; }
       .downloads a { margin-right: 10px; display: inline-block; margin-bottom: 8px; color: #2f67e3; }
@@ -22,6 +23,23 @@
       .dash-red { background:#fff1f1; border-color:#ffc7c7; }
       .dash-yellow { background:#fff9ea; border-color:#ffe3a3; }
       .dash-green { background:#eefbf3; border-color:#bfeacb; }
+      .report-selector { display:flex; flex-wrap:wrap; gap:8px; margin-top: 10px; }
+      .report-chip { display:inline-block; padding:8px 12px; border:1px solid #c9d8eb; border-radius:999px; text-decoration:none; background:#f7fbff; color:#1b2a41; }
+      .report-chip.active { background:#2f67e3; color:#fff; border-color:#2f67e3; }
+      .chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:12px; }
+      .chart { height: 360px; border:1px solid #e3eaf5; border-radius:10px; }
+      .muted { color:#5b6b7e; }
+      .conf-high, .conf-medium, .conf-low { padding:2px 8px; border-radius:999px; font-size:0.82rem; font-weight:700; display:inline-block; }
+      .conf-high { background:#e9f9ef; color:#157f3b; }
+      .conf-medium { background:#fff6e6; color:#a16800; }
+      .conf-low { background:#ffecec; color:#b42318; }
+      @media (max-width: 768px) {
+        .container { padding: 10px; margin: 10px auto; }
+        .card { padding: 12px; }
+        .chart-grid { grid-template-columns: 1fr; }
+        .chart { height: 320px; }
+        table { font-size: 0.86rem; }
+      }
     </style>
   </head>
   <body>
@@ -31,6 +49,18 @@
         <div>
           <span class="pill">Mode: {{ analysis_mode }}</span>
           <span class="pill">Overall: {{ severity_badge(result.overall_severity) }} {{ result.overall_severity }}</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Uploaded Reports</h3>
+        <p class="muted">Showing analysis for: <b>{{ selected_report.filename }}</b></p>
+        <div class="report-selector">
+          {% for rep in reports %}
+            <a class="report-chip {% if rep.id == selected_report.id %}active{% endif %}" href="/result/{{ report_id }}?report={{ rep.id }}">
+              {{ loop.index }}. {{ rep.filename }}
+            </a>
+          {% endfor %}
         </div>
       </div>
 
@@ -50,6 +80,17 @@
             <div style="font-size:0.9rem">{{ d.note }}</div>
           </div>
           {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>AWR Visual Diagnostics</h3>
+        <div class="chart-grid">
+          <div id="waitParetoChart" class="chart"></div>
+          <div id="topSqlChart" class="chart"></div>
+          <div id="dbTimeChart" class="chart"></div>
+          <div id="loadProfileChart" class="chart"></div>
+          <div id="comparisonTrendChart" class="chart"></div>
         </div>
       </div>
 
@@ -99,14 +140,116 @@
       </div>
 
       <div class="card">
+        <h3>Deterministic Cause Chains</h3>
+        <table>
+          <thead><tr><th>Chain</th><th>Severity</th><th>Evidence</th><th>Hypothesis</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for c in result.cause_chains_table %}
+            <tr>
+              <td>{{ c.chain }}</td>
+              <td>{{ severity_badge(c.severity) }} {{ c.severity }}</td>
+              <td>{{ c.evidence }}</td>
+              <td>{{ c.hypothesis }}</td>
+              <td>{{ c.action }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Normalized Metrics</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Metric</th><th>Value</th><th>Unit</th><th>Warn</th><th>Critical</th><th>Severity</th></tr></thead>
+          <tbody>
+            {% for m in result.metrics_table %}
+            <tr>
+              <td>{{ m.section }}</td>
+              <td>{{ m.metric }}</td>
+              <td>{{ m.value }}</td>
+              <td>{{ m.unit }}</td>
+              <td>{{ m.warning_threshold }}</td>
+              <td>{{ m.critical_threshold }}</td>
+              <td>{{ severity_badge(m.severity) }} {{ m.severity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Section Coverage</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Detected</th><th>Confidence</th><th>Evidence</th></tr></thead>
+          <tbody>
+            {% for s in result.section_coverage_table %}
+            <tr>
+              <td>{{ s.section }}</td>
+              <td>{{ 'Yes' if s.detected else 'No' }}</td>
+              <td>
+                <span class="conf-{{ s.confidence_level|lower }}">{{ s.confidence_level }} ({{ s.confidence_score }}%)</span>
+              </td>
+              <td>{{ s.evidence }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Multi-Report Comparison</h3>
+        <table>
+          <thead><tr><th>File</th><th>Severity</th><th>DB Time/s</th><th>DB CPU/s</th><th>Physical Reads/s</th><th>Top Wait</th><th>Top Wait %DB</th><th>RED Findings</th></tr></thead>
+          <tbody>
+            {% for row in comparison_table %}
+            <tr>
+              <td>{{ row.filename }}</td>
+              <td>{{ severity_badge(row.overall_severity) }} {{ row.overall_severity }}</td>
+              <td>{{ row.db_time_per_s }}</td>
+              <td>{{ row.db_cpu_per_s }}</td>
+              <td>{{ row.physical_reads_per_s }}</td>
+              <td>{{ row.top_wait_event }}</td>
+              <td>{{ row.top_wait_pct_db_time }}</td>
+              <td>{{ row.red_findings }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Regression vs Baseline (First Report)</h3>
+        <table>
+          <thead><tr><th>File</th><th>Severity</th><th>DB Time Δ%</th><th>DB CPU Δ%</th><th>Physical Reads Δ%</th><th>Top Wait Δ%</th></tr></thead>
+          <tbody>
+            {% for row in regression_table %}
+            <tr>
+              <td>{{ row.filename }}</td>
+              <td>{{ severity_badge(row.overall_severity) }} {{ row.overall_severity }}</td>
+              <td>{{ row.db_time_delta_pct }}</td>
+              <td>{{ row.db_cpu_delta_pct }}</td>
+              <td>{{ row.physical_reads_delta_pct }}</td>
+              <td>{{ row.top_wait_delta_pct }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
         <h3>Findings</h3>
         <table>
-          <thead><tr><th>Finding</th><th>Severity</th><th>Evidence</th><th>Business Impact</th></tr></thead>
+          <thead><tr><th>Finding</th><th>Severity</th><th>Confidence</th><th>Evidence</th><th>Business Impact</th></tr></thead>
           <tbody>
             {% for f in result.findings_table %}
             <tr>
               <td>{{ f.finding }}</td>
               <td>{{ severity_badge(f.severity) }} {{ f.severity }}</td>
+              <td>
+                {% set level = f.confidence_level or 'LOW' %}
+                {% set score = f.confidence_score or 0 %}
+                <span class="conf-{{ level|lower }}">{{ level }} ({{ score }}%)</span>
+              </td>
               <td>{{ f.evidence }}</td>
               <td>{{ f.business_impact }}</td>
             </tr>
@@ -159,15 +302,104 @@
 
       <div class="card downloads">
         <h3>Download Reports</h3>
-        <a href="/download/{{ report_id }}/full-html">Full HTML Report</a>
-        <a href="/download/{{ report_id }}/wait-events">Wait Events CSV</a>
-        <a href="/download/{{ report_id }}/top-sql">Top SQL CSV</a>
-        <a href="/download/{{ report_id }}/findings">Findings CSV</a>
-        <a href="/download/{{ report_id }}/modules">Module Status CSV</a>
-        <a href="/download/{{ report_id }}/recommendations">Recommendations CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/full-html">Full HTML Report</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/wait-events">Wait Events CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/top-sql">Top SQL CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/findings">Findings CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/modules">Module Status CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/recommendations">Recommendations CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/metrics">Metrics CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/cause-chains">Cause Chains CSV</a>
+        <a href="/download/{{ report_id }}/{{ selected_report.id }}/section-coverage">Section Coverage CSV</a>
+        <a href="/download/{{ report_id }}/comparison">Bundle Comparison CSV</a>
+        <a href="/download/{{ report_id }}/regression">Bundle Regression CSV</a>
       </div>
 
       <div class="card"><a class="back-btn" href="/">Analyze another file set</a></div>
     </div>
+
+    <script id="chartModelData" type="application/json">{{ (result.chart_model or {}) | tojson }}</script>
+    <script id="comparisonChartModelData" type="application/json">{{ (comparison_chart_model or {}) | tojson }}</script>
+    <script>
+      const chartModel = JSON.parse(document.getElementById('chartModelData').textContent || '{}');
+      const comparisonChartModel = JSON.parse(document.getElementById('comparisonChartModelData').textContent || '{}');
+
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const baseGrid = { top: 52, left: isMobile ? 44 : 56, right: 20, bottom: isMobile ? 138 : 120 };
+      const axisRotate = isMobile ? 48 : 24;
+      const mk = (id) => echarts.init(document.getElementById(id));
+
+      const charts = [
+        mk('waitParetoChart'),
+        mk('topSqlChart'),
+        mk('dbTimeChart'),
+        mk('loadProfileChart'),
+        mk('comparisonTrendChart')
+      ];
+
+      const wait = chartModel.wait_pareto || { labels: [], pct_db_time: [] };
+      charts[0].setOption({
+        title: { text: 'Top Wait Events (% DB Time)', left: 'center', top: 8, textStyle: { fontSize: 13, fontWeight: 600 } },
+        legend: { data: ['% DB Time'], bottom: 2, type: 'scroll' },
+        tooltip: { trigger: 'axis' },
+        grid: baseGrid,
+        xAxis: { type: 'category', data: wait.labels, axisLabel: { rotate: axisRotate, margin: 18 } },
+        yAxis: { type: 'value', name: '% DB Time' },
+        series: [{ name: '% DB Time', type: 'bar', data: wait.pct_db_time, itemStyle: { color: '#ff9f43' } }]
+      });
+
+      const sql = chartModel.top_sql || { labels: [], elapsed: [], cpu: [], buffer_gets: [] };
+      charts[1].setOption({
+        title: { text: 'Top SQL Elapsed/CPU + Buffer Gets', left: 'center', top: 8, textStyle: { fontSize: 13, fontWeight: 600 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['Elapsed', 'CPU', 'Buffer Gets'], bottom: 2, type: 'scroll' },
+        grid: baseGrid,
+        xAxis: { type: 'category', data: sql.labels, axisLabel: { rotate: axisRotate, margin: 18 } },
+        yAxis: [{ type: 'value', name: 'Time' }, { type: 'value', name: 'Gets' }],
+        series: [
+          { name: 'Elapsed', type: 'bar', data: sql.elapsed },
+          { name: 'CPU', type: 'bar', data: sql.cpu },
+          { name: 'Buffer Gets', type: 'line', yAxisIndex: 1, smooth: true, data: sql.buffer_gets }
+        ]
+      });
+
+      const dt = chartModel.db_time_breakdown || { labels: [], values: [] };
+      charts[2].setOption({
+        title: { text: 'DB Time Composition', left: 'center', top: 8, textStyle: { fontSize: 13, fontWeight: 600 } },
+        legend: { bottom: 2, type: 'scroll' },
+        tooltip: { trigger: 'item' },
+        series: [{ type: 'pie', radius: '56%', center: ['50%', '47%'], data: dt.labels.map((l, i) => ({ name: l, value: dt.values[i] || 0 })) }]
+      });
+
+      const lp = chartModel.load_profile || { labels: [], values: [] };
+      charts[3].setOption({
+        title: { text: 'Load Profile Key Metrics', left: 'center', top: 8, textStyle: { fontSize: 13, fontWeight: 600 } },
+        legend: { data: ['Metric Value'], bottom: 2, type: 'scroll' },
+        tooltip: { trigger: 'axis' },
+        grid: baseGrid,
+        xAxis: { type: 'category', data: lp.labels, axisLabel: { rotate: axisRotate, margin: 18 } },
+        yAxis: { type: 'value' },
+        series: [{ name: 'Metric Value', type: 'bar', data: lp.values, itemStyle: { color: '#3f8cff' } }]
+      });
+
+      const cmp = comparisonChartModel || { labels: [], db_time: [], db_cpu: [], top_wait_pct: [] };
+      charts[4].setOption({
+        title: { text: 'Multi-Report KPI Trend', left: 'center', top: 8, textStyle: { fontSize: 13, fontWeight: 600 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['DB Time/s', 'DB CPU/s', 'Top Wait %DB'], bottom: 2, type: 'scroll' },
+        grid: baseGrid,
+        xAxis: { type: 'category', data: cmp.labels, axisLabel: { rotate: axisRotate, margin: 18 } },
+        yAxis: { type: 'value' },
+        series: [
+          { name: 'DB Time/s', type: 'line', data: cmp.db_time },
+          { name: 'DB CPU/s', type: 'line', data: cmp.db_cpu },
+          { name: 'Top Wait %DB', type: 'line', data: cmp.top_wait_pct }
+        ]
+      });
+
+      window.addEventListener('resize', () => {
+        charts.forEach((c) => c.resize());
+      });
+    </script>
   </body>
 </html>

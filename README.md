@@ -20,9 +20,18 @@ Professional Oracle performance diagnostics from uploaded AWR/SQL/log artifacts 
 ## Features
 
 - Drag-and-drop upload + file browser upload
+- Multi-file upload with per-report deterministic analysis output
 - Professional tabular report output
 - CSV export for waits/findings/module-status/recommendations
 - Processing overlay while report is being mined
+- Deterministic section coverage checks (Load Profile, Host CPU, Top SQL sections, Wait sections)
+- Cause-chain diagnostics (CPU/parse pressure, commit/redo path, IO access path correlation)
+- Interactive KPI charts in HTML report (wait pareto, SQL elapsed vs CPU, DB time composition, load profile, multi-report trend)
+- Multi-report comparison and baseline regression CSV exports
+- Parser hardening for AWR HTML variants (summary/title/heading-linked table detection)
+- Confidence scoring: section-level detection confidence and per-finding confidence badges
+- In-memory report cache hardening with TTL+LRU style eviction
+- Deterministic unit tests for parser coverage and cause-chain generation
 
 ## Run locally
 
@@ -34,6 +43,12 @@ python run.py
 ```
 
 Open: `http://localhost:8080`
+
+Run tests:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
 
 Production-style local run:
 

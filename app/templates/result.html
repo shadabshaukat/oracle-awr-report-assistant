@@ -29,6 +29,8 @@
       .chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:12px; }
       .chart { height: 360px; border:1px solid #e3eaf5; border-radius:10px; }
       .muted { color:#5b6b7e; }
+      .banner-link { color: inherit; text-decoration: none; display: inline-block; }
+      .oracle-o { color: #e40000; font-weight: 800; margin-right: 6px; }
       .conf-high, .conf-medium, .conf-low { padding:2px 8px; border-radius:999px; font-size:0.82rem; font-weight:700; display:inline-block; }
       .conf-high { background:#e9f9ef; color:#157f3b; }
       .conf-medium { background:#fff6e6; color:#a16800; }
@@ -45,7 +47,9 @@
   <body>
     <div class="container">
       <div class="card top">
-        <h2>Oracle AWR Analysis Report</h2>
+        <a class="banner-link" href="/" title="Go to home and upload a fresh AWR report">
+          <h2><span class="oracle-o">O</span>Oracle AWR Analysis Report</h2>
+        </a>
         <div>
           <span class="pill">Mode: {{ analysis_mode }}</span>
           <span class="pill">Overall: {{ severity_badge(result.overall_severity) }} {{ result.overall_severity }}</span>

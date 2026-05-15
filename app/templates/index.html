@@ -9,6 +9,8 @@
       .container { max-width: 1050px; margin: 24px auto; padding: 20px; }
       .card { background: #ffffff; border: 1px solid #d9e1ec; border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 3px 18px rgba(16,24,40,0.06); }
       .title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+      .banner-link { color: inherit; text-decoration: none; display: inline-block; }
+      .oracle-o { color: #e40000; font-weight: 800; margin-right: 6px; }
       .muted { color: #5b6b7e; }
       .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef4ff; margin-right: 8px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
@@ -35,7 +37,9 @@
     </div>
     <div class="container">
       <div class="card">
-        <div class="title">🔒 {{ app_name }}</div>
+        <a class="banner-link" href="/" title="Go to home and upload a fresh AWR report">
+          <div class="title"><span class="oracle-o">O</span>{{ app_name }}</div>
+        </a>
         <p class="muted">Professional deterministic Oracle AWR mining — no AI model dependencies, no database connection, no credentials.</p>
         <div>
           <span class="pill">Mode: Deterministic</span>
